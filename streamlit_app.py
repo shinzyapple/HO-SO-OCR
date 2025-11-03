@@ -37,20 +37,20 @@ with col2:
     st.caption("ブラウザでカメラを許可してね。")
 
 # --- Client-side HTML/JS component (Tesseract.js + ROI drag + scheduling + playback) ---
-component_html = f"""
+component_html_template = """
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
   <style>
-    body{{font-family: Arial, Helvetica, sans-serif;}}
-    #video{{border:1px solid #444; max-width: 100%; height: auto; display:block;}}
-    #canvas_overlay{{position: absolute; left:0; top:0;}}
-    #container{{position: relative; display:inline-block;}}
-    #controls{{margin-top:8px;}}
-    button{{margin-right:6px;}}
-    #detected{{font-size:1.1em; margin-top:8px; color: #0a0;}}
+    body{font-family: Arial, Helvetica, sans-serif;}
+    #video{border:1px solid #444; max-width: 100%; height: auto; display:block;}
+    #canvas_overlay{position: absolute; left:0; top:0;}
+    #container{position: relative; display:inline-block;}
+    #controls{margin-top:8px;}
+    button{margin-right:6px;}
+    #detected{font-size:1.1em; margin-top:8px; color: #0a0;}
   </style>
 </head>
 <body>
@@ -67,11 +67,11 @@ component_html = f"""
   <div id="detected">認識: -</div>
 
   <script>
-    const mapping = {mapping_json};
-    const PLAY_DELAY_SEC = {play_delay};
-    const OCR_INTERVAL = {ocr_interval} * 1000;
-    const LANG = "{lang_choice}";
-    const allowListRaw = "{allow_list}";
+    const mapping = __MAPPING__;
+    const PLAY_DELAY_SEC = __PLAY_DELAY__;
+    const OCR_INTERVAL = __OCR_INTERVAL__ * 1000;
+    const LANG = "__LANG__";
+    const allowListRaw = "__ALLOW_LIST__";
     const allowList = allowListRaw ? allowListRaw.split(',').map(s=>s.trim()).filter(s=>s) : null;
 
     let scheduledTimer = null;
@@ -84,50 +84,50 @@ component_html = f"""
     let isDragging = false;
     let dragStart = null;
 
-    function cancelScheduled() {{
-      if(scheduledTimer) {{
+    function cancelScheduled() {
+      if(scheduledTimer) {
         clearTimeout(scheduledTimer);
         scheduledTimer = null;
         scheduledKey = null;
-      }}
-    }}
+      }
+    }
 
     // play audio in browser once
-    function playOnce(key) {{
+    function playOnce(key) {
       const path = mapping[key];
       if(!path) return;
       // stop existing
       const existing = document.getElementById('audio_player');
-      if(existing) {{ existing.pause(); existing.remove(); }}
+      if(existing) { existing.pause(); existing.remove(); }
       const audio = document.createElement('audio');
       audio.id = 'audio_player';
       audio.src = path;
       audio.autoplay = true;
-      audio.onended = ()=>{{ currentPlayingKey = null; }};
+      audio.onended = ()=>{ currentPlayingKey = null; };
       document.body.appendChild(audio);
       currentPlayingKey = key;
-    }}
+    }
 
-    function schedulePlayFor(key) {{
+    function schedulePlayFor(key) {
       // if another key playing, stop immediately
-      if(currentPlayingKey && currentPlayingKey !== key) {{
+      if(currentPlayingKey && currentPlayingKey !== key) {
         const ex = document.getElementById('audio_player');
-        if(ex) {{ ex.pause(); ex.remove(); }}
+        if(ex) { ex.pause(); ex.remove(); }
         currentPlayingKey = null;
-      }}
+      }
       // cancel previous schedule
       cancelScheduled();
       scheduledKey = key;
-      scheduledTimer = setTimeout(()=>{{ 
-        if(scheduledKey === key) {{
+      scheduledTimer = setTimeout(()=>{ 
+        if(scheduledKey === key) {
           playOnce(key);
           scheduledTimer = null;
           scheduledKey = null;
-        }}
-      }}, PLAY_DELAY_SEC * 1000);
-    }}
+        }
+      }, PLAY_DELAY_SEC * 1000);
+    }
 
-    function init() {{
+    function init() {
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas_overlay');
       const ctx = canvas.getContext('2d');
@@ -136,10 +136,10 @@ component_html = f"""
       const cancelBtn = document.getElementById('cancel_schedule');
       const roiInfo = document.getElementById('roi_info');
       // get camera
-      navigator.mediaDevices.getUserMedia({{video:true, audio:false}})
-        .then(stream => {{
+      navigator.mediaDevices.getUserMedia({video:true, audio:false})
+        .then(stream => {
           video.srcObject = stream;
-          video.onloadedmetadata = () => {{
+          video.onloadedmetadata = () => {
             // size canvas to video display size
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -151,75 +151,75 @@ component_html = f"""
             // start OCR worker after video ready
             startOCRLoop(video, canvas);
             drawLoop();
-          }};
-        }})
-        .catch(err => {{
+          };
+        })
+        .catch(err => {
           document.getElementById('detected').innerText = "カメラが使えません: " + err.message;
-        }});
+        });
 
       // mouse events for ROI on canvas (display coords = video pixel coords here)
-      canvas.addEventListener('mousedown', (e) => {{
+      canvas.addEventListener('mousedown', (e) => {
         isDragging = true;
         const rect = canvas.getBoundingClientRect();
-        dragStart = {{x: e.clientX - rect.left, y: e.clientY - rect.top}};
+        dragStart = {x: e.clientX - rect.left, y: e.clientY - rect.top};
         tempRoi = null;
-      }});
-      canvas.addEventListener('mousemove', (e) => {{
+      });
+      canvas.addEventListener('mousemove', (e) => {
         if(!isDragging) return;
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         const x1 = Math.min(dragStart.x, x), y1 = Math.min(dragStart.y, y);
         const x2 = Math.max(dragStart.x, x), y2 = Math.max(dragStart.y, y);
-        tempRoi = {{x: x1, y: y1, w: x2-x1, h: y2-y1}};
-      }});
-      canvas.addEventListener('mouseup', (e) => {{
+        tempRoi = {x: x1, y: y1, w: x2-x1, h: y2-y1};
+      });
+      canvas.addEventListener('mouseup', (e) => {
         isDragging = false;
         // leave tempRoi until saved
-      }});
-      canvas.addEventListener('mouseleave', (e) => {{
+      });
+      canvas.addEventListener('mouseleave', (e) => {
         isDragging = false;
-      }});
+      });
 
-      saveBtn.addEventListener('click', () => {{
-        if(tempRoi) {{
+      saveBtn.addEventListener('click', () => {
+        if(tempRoi) {
           roi = tempRoi;
           roiInfo.innerText = 'ROI: ' + Math.round(roi.x) + ',' + Math.round(roi.y) + ',' + Math.round(roi.w) + 'x' + Math.round(roi.h);
-        }} else {{
+        } else {
           roi = null;
           roiInfo.innerText = 'ROI: 全画面';
-        }}
-      }});
-      resetBtn.addEventListener('click', () => {{
+        }
+      });
+      resetBtn.addEventListener('click', () => {
         roi = null;
         tempRoi = null;
         roiInfo.innerText = 'ROI: 全画面';
-      }});
-      cancelBtn.addEventListener('click', () => {{
+      });
+      cancelBtn.addEventListener('click', () => {
         cancelScheduled();
-      }});
+      });
 
       // draw overlay loop
-      function drawLoop() {{
+      function drawLoop() {
         ctx.clearRect(0,0,canvas.width, canvas.height);
         // draw saved ROI (blue)
-        if(roi) {{
+        if(roi) {
           ctx.strokeStyle = 'rgba(0,0,255,0.9)';
           ctx.lineWidth = 3;
           ctx.strokeRect(roi.x, roi.y, roi.w, roi.h);
-        }}
+        }
         // draw temp ROI (red)
-        if(tempRoi) {{
+        if(tempRoi) {
           ctx.strokeStyle = 'rgba(255,0,0,0.9)';
           ctx.lineWidth = 2;
           ctx.strokeRect(tempRoi.x, tempRoi.y, tempRoi.w, tempRoi.h);
-        }}
+        }
         requestAnimationFrame(drawLoop);
-      }}
-    }}
+      }
+    }
 
-    async function startOCRLoop(video, canvas) {{
-      const worker = Tesseract.createWorker({{logger: m => {{ /* progress */ }}}});
+    async function startOCRLoop(video, canvas) {
+      const worker = Tesseract.createWorker({logger: m => { /* progress */ }});
       await worker.load();
       await worker.loadLanguage(LANG);
       await worker.initialize(LANG);
@@ -227,19 +227,19 @@ component_html = f"""
       const detectCanvas = document.createElement('canvas');
       const detectCtx = detectCanvas.getContext('2d');
 
-      setInterval(async () => {{
+      setInterval(async () => {
         if(video.readyState < 2) return;
         // pick source area: ROI if set, else whole video
         const vw = video.videoWidth, vh = video.videoHeight;
         let sx=0, sy=0, sw=vw, sh=vh;
-        if(roi) {{
+        if(roi) {
           sx = Math.max(0, Math.floor(roi.x));
           sy = Math.max(0, Math.floor(roi.y));
           sw = Math.max(1, Math.floor(roi.w));
           sh = Math.max(1, Math.floor(roi.h));
-        }} else {{
+        } else {
           sx=0; sy=0; sw=vw; sh=vh;
-        }}
+        }
         // resize for speed
         const targetW = Math.min(640, sw);
         const scale = targetW / sw;
@@ -248,34 +248,33 @@ component_html = f"""
         detectCanvas.height = targetH;
         detectCtx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
 
-        try {{
+        try {
           const res = await worker.recognize(detectCanvas);
           const recognized = (res.data && res.data.text) ? res.data.text.trim() : '';
-          if(recognized) {{
+          if(recognized) {
             let tokens = recognized.split(/\\s+|\\n|\\.|,|、|。/).map(s=>s.trim()).filter(s=>s);
             if(allowList) tokens = tokens.filter(t => allowList.includes(t));
             let matched = null;
-            for(const t of tokens) {{
-              for(const key of Object.keys(mapping)) {{
-                if (t.includes(key) || key.includes(t)) {{ matched = key; break; }}
-              }}
+            for(const t of tokens) {
+              for(const key of Object.keys(mapping)) {
+                if (t.includes(key) || key.includes(t)) { matched = key; break; }
+              }
               if(matched) break;
-            }}
-            if(matched) {{
+            }
+            if(matched) {
               document.getElementById('detected').innerText = "認識: " + matched;
               schedulePlayFor(matched);
-            }} else {{
+            } else {
               document.getElementById('detected').innerText = "認識: -";
-              // 未検出時は既存スケジュールを維持（仕様）
-            }}
-          }} else {{
+            }
+          } else {
             // nothing recognized this cycle
-          }}
-        }} catch(e) {{
+          }
+        } catch(e) {
           console.log('OCR error', e);
-        }}
-      }}, OCR_INTERVAL);
-    }}
+        }
+      }, OCR_INTERVAL);
+    }
 
     // init after DOM loaded
     window.addEventListener('DOMContentLoaded', init);
@@ -284,4 +283,12 @@ component_html = f"""
 </html>
 """
 
+# Replace placeholders safely
+component_html = component_html_template.replace("__MAPPING__", mapping_json)
+component_html = component_html.replace("__PLAY_DELAY__", str(play_delay))
+component_html = component_html.replace("__OCR_INTERVAL__", str(ocr_interval))
+component_html = component_html.replace("__LANG__", lang_choice)
+component_html = component_html.replace("__ALLOW_LIST__", allow_list.replace('"', ''))
+
+# embed the HTML
 html(component_html, height=640, scrolling=True)

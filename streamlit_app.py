@@ -32,10 +32,10 @@ debounce_sec = st.sidebar.number_input("同語デバウンス秒", 0.1, 10.0, 1.
 
 # ROI をスライダーで指定（割合ベースにしてどの解像度でも使える）
 st.sidebar.markdown("### ROI（割合で指定）")
-x0 = st.sidebar.slider("左 (%)", 0, 90, 25)
-y0 = st.sidebar.slider("上 (%)", 0, 90, 33)
+x0 = st.sidebar.slider("左 (%)", 0, 90, 50)
+y0 = st.sidebar.slider("上 (%)", 0, 90, 50)
 w_pct = st.sidebar.slider("幅 (%)", 1, 100 - x0, 50)
-h_pct = st.sidebar.slider("高さ (%)", 1, 100 - y0, 34)
+h_pct = st.sidebar.slider("高さ (%)", 1, 100 - y0, 25)
 
 # 再生遅延（もし必要なら）
 play_delay = st.sidebar.number_input("再生遅延（秒、認識から）", min_value=0.0, value=0.0, step=0.5)

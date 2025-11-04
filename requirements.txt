@@ -1,6 +1,6 @@
 streamlit
 streamlit-webrtc
-easyocr
+pytesseract
 pandas
 opencv-python-headless
 av

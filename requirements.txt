@@ -1,2 +1,6 @@
 streamlit
+streamlit-webrtc
+easyocr
 pandas
+opencv-python-headless
+av
